@@ -30,7 +30,8 @@ def retrieveHistos (rootFile, namelist, var, sel, tag):
         theH = retrieveHisto(rootFile, name, var, sel, tag)
         if not theH:
             continue
-        res[name] = SampleHist.SampleHist(name=name, inputH=theH)
+        # res[name] = SampleHist.SampleHist(name=name, inputH=theH)
+        res[name] = theH
     return res
 
 def retrieveQCD (rootFile, var, sel, dataNameList):

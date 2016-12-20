@@ -2,6 +2,7 @@ import ROOT
 import ConfigReader as cfgr
 import fnmatch
 import math
+# import SampleHist
 
 class UserHistoError:
     """ parses a cfg files and reads which systematics must be applied.
@@ -39,7 +40,14 @@ class UserHistoError:
             raise ValueError
 
         self.herror = self.histos.values()[0].Clone('herrorUser')
-        # self.hsum   = self.histos.values()[0].Clone('hsumUser')
+        # if (isinstance(self.histos.values()[0], ROOT.TH1)):
+        #     self.herror = self.histos.values()[0].Clone('herrorUser')
+        # elif (isinstance(self.histos.values()[0], SampleHist.SampleHist)):
+        #     self.herror = self.histos.values()[0].evtHist.Clone('herrorUser')
+        # else:
+        #     print "** Error: don't know how to handle the type of histos: " , type(self.histos.values()[0])
+        #     raise ValueError
+        #     # self.hsum   = self.histos.values()[0].Clone('hsumUser')
 
         for ibin in range(1, self.herror.GetNbinsX()+1):
             self.herror.SetBinContent(ibin, 0.0)
@@ -55,8 +63,6 @@ class UserHistoError:
             print "** Error: UserHistoError : getErrorEnvelope : input cfg has no [list] section, cannot find systs"
             raise ValueError
         
-        #### FIXME: rivedere la parte sottostante
-
         # print self.cfgSystRdr.config['list']
         systList = self.cfgSystRdr.config['list'].keys()
         # print systList
