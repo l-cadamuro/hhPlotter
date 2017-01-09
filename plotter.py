@@ -8,6 +8,7 @@ import ToolsNew as Tools
 import SampleHist as sh
 import UserHistoError as uhe
 import ROOT
+import collections
 
 def makeChanName(bcateg, taucateg):
     """ mini helper to create a nice string from chans name for plots"""
@@ -90,18 +91,28 @@ if args.quit : ROOT.gROOT.SetBatch(True)
 
 cfgName        = Tools.findInFolder  (args.dir+"/", 'mainCfg*.cfg')
 # outplotterName = findInFolder  (args.dir+"/", 'outPlotter3.root')
-outplotterName = Tools.findInFolder  (args.dir+"/", 'outPlotter.root')
+outplotterName = Tools.findInFolder  (args.dir+"/", 'analyzedOutPlotter.root')
 
 cfg = cfgr.ConfigReader (args.dir + "/" + cfgName)
-bkgList  = cfg.readListOption("general::backgrounds")
 dataList = cfg.readListOption("general::data")
 sigList  = cfg.readListOption("general::signals")
+bkgList       = cfg.readListOption("general::backgrounds")
+bkgReplacList = [name for name in cfg.config['pp_merge']] if cfg.hasSection('pp_merge') else []
+for name in bkgReplacList: # substitute the sum of a bkg group
+    bkgList.append(name)
+    for part in cfg.readListOption('pp_merge::'+name):
+        bkgList.remove(part)
+if cfg.hasSection('pp_QCD'):
+    bkgList.append('QCD')
+else:
+    print "** Warning: No QCD section was found in mainCfg, was it computed?"
 
 ###########################################
 #############  retrieve plots  ############
 ###########################################
 
 rootFile = ROOT.TFile.Open (args.dir+"/"+outplotterName)
+print '... opened file' , rootFile.GetName()
 hSigs    = Tools.retrieveHistos  (rootFile, sigList,  args.var, args.sel) #, "sig": tags are unused now
 hBkgs    = Tools.retrieveHistos  (rootFile, bkgList,  args.var, args.sel) #, "bkg": tags are unused now
 hDatas   = Tools.retrieveHistos  (rootFile, dataList, args.var, args.sel) #, "DATA": tags are unused now
@@ -129,6 +140,67 @@ uh.histos = dict (hBkgs)
 
 histoErr = uh.getErrorEnvelope()
 
+
+########## Titles ##########
+titles = {
+    'TT'    : 't#bar{t}',
+    'DY'    : 'Drell-Yan',
+    'VV'    : 'VV',
+    'WJets' : 'W+jets',
+    'QCD'   : 'QCD',
+    'other' : 'Other bkg.'
+}
+
+########## Colors ##########
+fillcolors = {
+    'TT'    : 8,
+    'DY'    : 92,
+    'VV'    : ROOT.kRed-7,
+    'WJets' : ROOT.kGray,
+    'QCD'   : 606,
+    'other' : ROOT.kRed-7,
+}
+
+# fillcolors = {
+#     'TT'    : ROOT.TColor.GetColor('#00AACC'), #B3E8CA
+#     'DY'    : 92,
+#     'VV'    : ROOT.kRed-7,
+#     'WJets' : ROOT.kGray,
+#     'QCD'   : 606,
+#     'other' : ROOT.kRed-7,
+# }
+
+# fillcolors = {
+#     'TT'    : ROOT.TColor.GetColor('#FF6A5A'),
+#     'DY'    : ROOT.TColor.GetColor('#FFB350'),
+#     # 'VV'    : ROOT.kRed-7,
+#     # 'WJets' : ROOT.kGray,
+#     'QCD'   : ROOT.TColor.GetColor('#83B8AA'),
+#     'other' : ROOT.TColor.GetColor('#272D4D'),
+# }
+
+linecolors = {
+    'TT'    : ROOT.kGreen+3,
+    'DY'    : 94,
+    'VV'    : ROOT.kRed-6,
+    'WJets' : ROOT.kGray,
+    'QCD'   : 607,
+    'other' : ROOT.kRed-6,
+}
+
+linestyles = {
+    'HHSM' : 7,
+}
+
+######### Things to plot ##################
+# sigList = ["HHSM"]
+bkgToPlot = collections.OrderedDict()
+bkgToPlot['TT' ]   = ['TT']
+bkgToPlot['QCD']   = ['QCD']
+bkgToPlot['DY' ]   = ['DY0b', 'DY1b', 'DY2b']
+bkgToPlot['other'] = ['WJets', 'TWtop', 'TWantitop', 'WWToLNuQQ', 'WZTo1L1Nu2Q', 'WZTo1L3Nu', 'WZTo2L2Q', 'ZZTo2L2Q']
+
+
 ###########################################
 ############  prepare plotter  ############
 ###########################################
@@ -153,15 +225,10 @@ shc.legymin    = args.lymin
 shc.legcoords  = None if not args.legcoords else list([args.legcoords[0], args.legcoords[1], args.legcoords[2], args.legcoords[3]])
 shc.siglegextratext = args.siglegextratext
 shc.blindrange = None if not args.blindrange else list([args.blindrange[0], args.blindrange[1]])
+shc.linecolors = dict(linecolors)
+shc.fillcolors = dict(fillcolors)
+shc.linestyles = dict(linestyles)
 
-########## Titles ##########
-titles = {
-    'TT'    : 't#bar{t}',
-    'DY'    : 'Drell-Yan',
-    'VV'    : 'VV',
-    'Wjets' : 'W+jets'
-    'QCD'   : 'QCD'
-}
 
 ### decide what to plot
 ## FIXME: could be done from a config? manual edit here!
@@ -175,14 +242,16 @@ sigList[:] = [x for x in sigList if x in hSigs]
 
 for h in hSigs:
     shc.addHisto (hSigs[h], h, 'sig', hSigs[h].GetName())
-for h in hBkgs:
-    shc.addHisto (hBkgs[h], h, 'bkg', hBkgs[h].GetName())
+# for h in hBkgs:
+for hname in bkgToPlot:
+    for h in bkgToPlot[hname]:
+        shc.addHisto (hBkgs[h], hname, 'bkg', hBkgs[h].GetName())
 for h in hDatas:
     shc.addHisto (hDatas[h], h, 'data', hDatas[h].GetName())
 ## mu, e, for pre-mass cut
 # sigNameList = ["k_{#lambda} = 1 (SM) #times 5000"]
 # sigScale = [5000.*(0.073/1.)*33.45/1000.] # tutto a 1 pb di rpoduzione hh (tolgo il BR in bbtautau)
-shc.setListToPlot(hBkgs.keys(), 'bkg')
+shc.setListToPlot(bkgToPlot.keys(), 'bkg')
 shc.setListToPlot(sigList, 'sig')
 shc.setListToPlot(['DsingleMu'], 'data')
 

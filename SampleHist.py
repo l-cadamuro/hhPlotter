@@ -38,6 +38,13 @@ class SampleHist:
         self.bwHist  = self.evtHist.Clone(self.evtHist.GetName()+"_bw")
         self.bwHist.Scale(1., "width")
 
+    def addHisto(self, newHisto):
+        """ add a new histogram to the current one. newHisto is an event histogram """
+        tmp = newHisto.Clone('TMP'+self.evtHist.GetName())
+        self.evtHist.Add(tmp)
+        tmp.Scale(1., "width")
+        self.bwHist.Add(tmp)
+
     def getHisto(self, bw=False):
         if bw:
             return self.bwHist
@@ -269,15 +276,21 @@ class SampleHistColl:
 
     def addHisto(self, histo, name, htype, title='histoTitle'):
         print "@@ adding histo: " , name , '( type:', htype ,')'
-        sh = SampleHist(name=name, title=title, htype=htype, inputH=histo)
+        mycoll = None
         if   htype == 'sig':
-            self.sigs[name] = sh
+            mycoll = self.sigs
         elif htype == 'bkg':
-            self.bkgs[name] = sh
+            mycoll = self.bkgs
         elif htype == 'data':
-            self.data[name] = sh
+            mycoll = self.data
         else:
             raise ValueError ('** SampleHistColl : addHisto : type needs to be sig, bkg, or data, you passed %s' % str(htype))
+
+        if not name in mycoll:
+            sh = SampleHist(name=name, title=title, htype=htype, inputH=histo)
+            mycoll[name] = sh
+        else:
+            mycoll[name].addHisto(histo)
 
     def setListToPlot (self, orderList, htype):
         if   htype == 'sig':
