@@ -65,9 +65,9 @@ parser.add_argument('--root',     dest='root', help = 'print root canvas', actio
 parser.add_argument('--quit',     dest='quit', help = 'quit at the end of the script, no interactive window', action='store_true', default=False)
 
 # par list opt
-parser.add_argument('--blind-range',   dest='blindrange', nargs=2, help='start and end of blinding range', default=None)
+parser.add_argument('--blind-range',   dest='blindrange', type=float, nargs=2, help='start and end of blinding range', default=None)
 # parser.add_argument('--arrow-xy',      dest='arrowxy', nargs=2, help='x and y (max) of the arrow of BDT WP', default=None)
-parser.add_argument('--leg-coords',    dest='legcoords', nargs=4, help='x and y coordinates of the legend', default=None)
+parser.add_argument('--leg-coords',    dest='legcoords', type=float, nargs=4, help='x and y coordinates of the legend', default=None)
 
 #float opt
 parser.add_argument('--lxmin', dest='lxmin', type=float, help='legend min x position in pad fraction', default=None)
@@ -76,7 +76,7 @@ parser.add_argument('--ymin', dest='ymin', type=float, help='min y range of plot
 parser.add_argument('--ymax', dest='ymax', type=float, help='max y range of plots', default=None)
 parser.add_argument('--xmax', dest='xmax', type=float, help='max x range of plots', default=None)
 parser.add_argument('--xmin', dest='xmin', type=float, help='min x range of plots', default=None)
-# parser.add_argument('--sigscale', dest='sigscale', type=float, help='scale to apply to all signals', default=1.0)
+parser.add_argument('--sigscale', dest='sigscale', type=float, help='scale to apply to all signals', default=None)
 
 args = parser.parse_args()
 
@@ -230,6 +230,7 @@ shc.blindrange = None if not args.blindrange else list([args.blindrange[0], args
 shc.linecolors = dict(linecolors)
 shc.fillcolors = dict(fillcolors)
 shc.linestyles = dict(linestyles)
+shc.sigscale   = args.sigscale
 
 ### decide what to plot
 ## FIXME: could be done from a config? manual edit here!

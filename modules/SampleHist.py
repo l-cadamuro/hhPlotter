@@ -61,6 +61,10 @@ class SampleHist:
         elif not bw and not grass:
             return self.evtGr
 
+    def scale(self, scale):
+        self.evtHist.Scale(scale)
+        self.bwHist.Scale(scale)
+
     def getTitle(self):
         return self.title
 
@@ -180,7 +184,6 @@ class SampleHist:
             if xpt > xmin and xpt < xmax:
                 self.bwGr_grass.RemovePoint(ipt)
         
-
     def setGraphStyles(self):
         try: 
             self.bwGr
@@ -228,6 +231,9 @@ class SampleHistColl:
         self.linestyles = {}
         self.linecolors = {}
         self.fillcolors = {}
+
+        # this modify signal histos and scales them by a factor
+        self.sigscale = None
 
         ## plotting options
         self.logy       = False
@@ -409,6 +415,11 @@ class SampleHistColl:
         self.pad1.Draw()
         self.pad1.cd()
 
+        ### scale all signal histograms if required
+        if self.plotSig and self.sigscale:
+            for sh in self.sigs: 
+                self.sigs[sh].scale(self.sigscale)
+
         try:
             self.bkgstack
         except AttributeError:
@@ -460,7 +471,7 @@ class SampleHistColl:
         # stackToUse.GetYaxis().SetTitle(self.ytitle)
         stackToUse.SetTitle('')
         stackToUse.GetXaxis().SetTitle(stackToUse.GetStack().Last().GetXaxis().GetTitle())
-        
+
         if self.title:
             decTitle = self.decodeTitle()
             stackToUse.SetTitle(decTitle[0])
