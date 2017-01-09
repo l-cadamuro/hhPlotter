@@ -148,7 +148,8 @@ titles = {
     'VV'    : 'VV',
     'WJets' : 'W+jets',
     'QCD'   : 'QCD',
-    'other' : 'Other bkg.'
+    'other' : 'Other bkg.',
+    'HHSM'  : 'k_{#lambda} = 1 (SM)'
 }
 
 ########## Colors ##########
@@ -241,13 +242,13 @@ for sig in sigList:
 sigList[:] = [x for x in sigList if x in hSigs]
 
 for h in hSigs:
-    shc.addHisto (hSigs[h], h, 'sig', hSigs[h].GetName())
+    shc.addHisto (hSigs[h], h, 'sig', (titles[h] if h in titles else hSigs[h].GetName()))
 # for h in hBkgs:
 for hname in bkgToPlot:
     for h in bkgToPlot[hname]:
-        shc.addHisto (hBkgs[h], hname, 'bkg', hBkgs[h].GetName())
+        shc.addHisto (hBkgs[h], hname, 'bkg', (titles[hname] if hname in titles else hBkgs[h].GetName()))
 for h in hDatas:
-    shc.addHisto (hDatas[h], h, 'data', hDatas[h].GetName())
+    shc.addHisto (hDatas[h], h, 'data', 'Data')
 ## mu, e, for pre-mass cut
 # sigNameList = ["k_{#lambda} = 1 (SM) #times 5000"]
 # sigScale = [5000.*(0.073/1.)*33.45/1000.] # tutto a 1 pb di rpoduzione hh (tolgo il BR in bbtautau)
