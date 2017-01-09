@@ -81,6 +81,7 @@ parser.add_argument('--xmin', dest='xmin', type=float, help='min x range of plot
 args = parser.parse_args()
 
 if args.quit : ROOT.gROOT.SetBatch(True)
+
 # if args.ratio: args.sbplot = False
 # if not args.dosig : args.sbplot = False 
 
@@ -259,4 +260,6 @@ shc.setListToPlot(['DsingleMu'], 'data')
 shc.makePlot()
 shc.c1.cd()
 shc.c1.Update()
-raw_input()
+
+if not args.quit:
+    raw_input()

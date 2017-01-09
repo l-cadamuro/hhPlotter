@@ -320,7 +320,7 @@ class SampleHistColl:
         if self.legxmin:
             legxmin = self.legxmin
         if self.legymin:
-            legymin = self.legyxmin
+            legymin = self.legymin
         legxmax = 0.37+legxmin
         legymax = 0.93
         if self.legcoords:
@@ -683,11 +683,14 @@ class SampleHistColl:
 
         self.bw_stackErrorHist = self.stackErrorHist.Clone('bw_'+self.stackErrorHist.GetName())
 
-        # scale bw errors by the bw
+        # scale bw errors by the bw , and histo by the width
         for ibin in range(1,self.bw_stackErrorHist.GetNbinsX()+1):
+            bcont = self.bw_stackErrorHist.GetBinContent(ibin)
             berr = self.bw_stackErrorHist.GetBinError(ibin)
             bw = self.bw_stackErrorHist.GetBinLowEdge(ibin+1) - self.bw_stackErrorHist.GetBinLowEdge(ibin)
+            self.bw_stackErrorHist.SetBinContent(ibin, bcont/bw)
             self.bw_stackErrorHist.SetBinError(ibin, berr/bw)
+
 
         if self.ratio:
             self.ratioErrorHist = self.stackErrorHist.Clone('ratioerr_'+self.stackErrorHist.GetName())
