@@ -272,7 +272,9 @@ class SampleHistColl:
         ## titles and plot properties
         # self.xtitle = 'xtitle'
         # self.ytitle = 'ytitle'
-        self.title = None # note: y automatically set to 'Events' if no division by bin width
+        self.title  = None # note: y automatically set to 'Events' if no division by bin width
+        self.xtitle = None
+        self.ytitle = None
 
     def addHisto(self, histo, name, htype, title='histoTitle'):
         print "@@ adding histo: " , name , '( type:', htype ,')'
@@ -457,8 +459,25 @@ class SampleHistColl:
         # stackToUse.GetXaxis().SetTitle(self.xtitle)
         # stackToUse.GetYaxis().SetTitle(self.ytitle)
         stackToUse.SetTitle('')
-        if self.title: stackToUse.SetTitle(self.title)
-        if not self.divByBW: stackToUse.GetYaxis().SetTitle('Events') # does not change title, but works if commenting previous line... ??
+        stackToUse.GetXaxis().SetTitle(stackToUse.GetStack().Last().GetXaxis().GetTitle())
+        
+        if self.title:
+            decTitle = self.decodeTitle()
+            stackToUse.SetTitle(decTitle[0])
+            if decTitle[1] : stackToUse.GetXaxis().SetTitle(decTitle[1])            
+            if decTitle[2] : stackToUse.GetYaxis().SetTitle(decTitle[2])
+
+        if not self.divByBW: stackToUse.GetYaxis().SetTitle('Events')
+
+        
+        ## overrides if input 
+        # if self.ytitle: stackToUse.GetYaxis().SetTitle(self.ytitle)
+        # # else: stackToUse.GetYaxis().SetTitle(stackToUse.GetStack().Last().GetYaxis().GetTitle())
+        # if not self.divByBW: stackToUse.GetYaxis().SetTitle('Events') # does not change title, but works if commenting previous line... ??
+        
+        # if self.xtitle: stackToUse.GetXaxis().SetTitle(self.xtitle)
+        # else: stackToUse.GetXaxis().SetTitle(stackToUse.GetStack().Last().GetXaxis().GetTitle())
+
         stackToUse.GetXaxis().SetTitleFont(self.textfont)
         stackToUse.GetYaxis().SetTitleFont(self.textfont)
         stackToUse.GetXaxis().SetLabelFont(self.textfont)
@@ -725,6 +744,15 @@ class SampleHistColl:
         ## - everything is ready and multiple data are drawn, but the same style
         ## need to add a setGraphStyle function to class SampleHist
 
+    def decodeTitle(self):
+        """ check whether this is a plain title or a title;xtitle;ytitle format """
+        if not ';' in self.title:
+            return (self.title, None, None)
+        decoded = self.title.split(';')
+        if len(decoded) == 2:
+            return (decoded[0], decoded[1], None)
+        else:
+            return (decoded[0], decoded[1], decoded[2])
 
     ### plotter opiton setters -- really needed in python?
     def setLogY(self, val):

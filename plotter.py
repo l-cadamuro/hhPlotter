@@ -212,8 +212,8 @@ shc.stackErrorHist = histoErr
 shc.logy       = args.log
 shc.ratio      = args.ratio
 shc.lumi       = float(cfg.readOption ("general::lumi"))/1000. # from pb to fb
-shc.title      = args.title
 shc.chan       = makeChanName(args.bcateg, args.channel)
+shc.title      = args.title
 shc.divByBW    = args.binwidth
 shc.plotData   = args.dodata
 shc.plotSig    = args.dosig
@@ -230,7 +230,6 @@ shc.blindrange = None if not args.blindrange else list([args.blindrange[0], args
 shc.linecolors = dict(linecolors)
 shc.fillcolors = dict(fillcolors)
 shc.linestyles = dict(linestyles)
-
 
 ### decide what to plot
 ## FIXME: could be done from a config? manual edit here!
