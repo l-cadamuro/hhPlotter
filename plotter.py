@@ -3,10 +3,10 @@
 ### and finally displays/saves the plot
 
 import argparse
-import ConfigReader as cfgr
-import ToolsNew as Tools
-import SampleHist as sh
-import UserHistoError as uhe
+import modules.ConfigReader as cfgr
+import modules.ToolsNew as Tools
+import modules.SampleHist as sh
+import modules.UserHistoError as uhe
 import ROOT
 import collections
 
