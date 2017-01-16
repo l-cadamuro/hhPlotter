@@ -9,6 +9,7 @@ import modules.SampleHist as sh
 import modules.UserHistoError as uhe
 import ROOT
 import collections
+import fnmatch
 
 def makeChanName(bcateg, taucateg):
     """ mini helper to create a nice string from chans name for plots"""
@@ -17,6 +18,10 @@ def makeChanName(bcateg, taucateg):
     ## b part    
     if bcateg == 'bb':
         chname = 'bb'
+    elif bcateg == 'bj':
+        chname = 'bj'
+    elif bcateg == 'jj':
+        chname = 'jj'
 
     # space
     chname += ' '
@@ -24,10 +29,12 @@ def makeChanName(bcateg, taucateg):
     # tau part
     if taucateg == 'MuTau' or taucateg == 'mutau':
         chname += '#mu#tau_{h}'
-    if taucateg == 'ETau' or taucateg == 'etau':
+    elif taucateg == 'ETau' or taucateg == 'etau':
         chname += 'e#tau_{h}'
-    if taucateg == 'TauTau' or taucateg == 'tautau':
+    elif taucateg == 'TauTau' or taucateg == 'tautau':
         chname += '#tau_{h}#tau_{h}'
+    elif taucateg == 'MuMu' or taucateg == 'mumu':
+        chname += '#mu#mu'
 
     return chname
 
@@ -63,6 +70,9 @@ parser.add_argument('--ratio',    dest='ratio', help = 'do ratio plot at the bot
 parser.add_argument('--no-print', dest='printplot', help = 'no pdf output', action='store_false', default=True)
 parser.add_argument('--root',     dest='root', help = 'print root canvas', action='store_true', default=False)
 parser.add_argument('--quit',     dest='quit', help = 'quit at the end of the script, no interactive window', action='store_true', default=False)
+parser.add_argument('--no-sr-namecompl',  dest='srnamecompl', help = 'complete the sel name with string SR if not specified by the user', action='store_false', default=True)
+parser.add_argument('--tab',      dest='tab', help = 'print table with yields', action='store_true', default=False)
+
 
 # par list opt
 parser.add_argument('--blind-range',   dest='blindrange', type=float, nargs=2, help='start and end of blinding range', default=None)
@@ -114,10 +124,13 @@ else:
 
 rootFile = ROOT.TFile.Open (args.dir+"/"+outplotterName)
 print '... opened file' , rootFile.GetName()
-hSigs    = Tools.retrieveHistos  (rootFile, sigList,  args.var, args.sel) #, "sig": tags are unused now
-hBkgs    = Tools.retrieveHistos  (rootFile, bkgList,  args.var, args.sel) #, "bkg": tags are unused now
-hDatas   = Tools.retrieveHistos  (rootFile, dataList, args.var, args.sel) #, "DATA": tags are unused now
-# hQCD     = Tools.retrieveQCD     (rootFile, args.var, args.sel, dataList)
+sel = args.sel
+if not '_SR' in sel and args.srnamecompl: sel += '_SR'
+
+hSigs    = Tools.retrieveHistos  (rootFile, sigList,  args.var, sel) #, "sig": tags are unused now
+hBkgs    = Tools.retrieveHistos  (rootFile, bkgList,  args.var, sel) #, "bkg": tags are unused now
+hDatas   = Tools.retrieveHistos  (rootFile, dataList, args.var, sel) #, "DATA": tags are unused now
+# hQCD     = Tools.retrieveQCD     (rootFile, args.var, sel, dataList)
 
 ###########################################
 ########  retrieve/compute errors  ########
@@ -141,7 +154,9 @@ uh.histos = dict (hBkgs)
 
 histoErr = uh.getErrorEnvelope()
 
-
+#####################################
+#####################################
+# inv masses
 ########## Titles ##########
 titles = {
     'TT'    : 't#bar{t}',
@@ -150,13 +165,68 @@ titles = {
     'WJets' : 'W+jets',
     'QCD'   : 'QCD',
     'other' : 'Other bkg.',
-    'HHSM'  : 'k_{#lambda} = 1 (SM)'
+    'HHSM'  : '100 #times k_{#lambda} = 1 (SM)',
+    # 'HHSM'  : 'k_{#lambda} = 1 (SM)',
+    'Radion300' : 'm_{X} = 300 GeV',
+    'Radion650' : 'm_{X} = 650 GeV',
+    'Radion900' : 'm_{X} = 900 GeV',
 }
+
+########## Signal scales ##########
+## sigs produced with 1 pb of cross section
+
+sigscales = {
+    'HHSM'    : 100.*33.49*0.073/1000.,
+    # 'Radion*' : 0.073/1.,
+    'Radion300' : 1.*0.073/1.,
+    'Radion650' : 1.*0.073/1.,
+    'Radion900' : 1.*0.073/1.,
+}
+#####################################
+#####################################
+
+# #####################################
+# #####################################
+# # BDT output
+# ########## Titles ##########
+# titles = {
+#     'TT'    : 't#bar{t}',
+#     'DY'    : 'Drell-Yan',
+#     'DY0b'  : 'Drell-Yan 0b',
+#     'DY1b'  : 'Drell-Yan 1b',
+#     'DY2b'  : 'Drell-Yan 2b',
+#     'VV'    : 'VV',
+#     'WJets' : 'W+jets',
+#     'QCD'   : 'QCD',
+#     'other' : 'Other bkg.',
+#     'HHSM'  : '1000 #times k_{#lambda} = 1 (SM)',
+#     # 'HHSM'  : 'k_{#lambda} = 1 (SM)',
+#     'Radion300' : 'm_{X} = 300 GeV',
+#     'Radion650' : 'm_{X} = 650 GeV',
+#     'Radion900' : 'm_{X} = 900 GeV',
+# }
+
+# ########## Signal scales ##########
+# ## sigs produced with 1 pb of cross section
+
+# sigscales = {
+#     'HHSM'    : 1000.*33.49*0.073/1000.,
+#     # 'Radion*' : 0.073/1.,
+#     'Radion300' : 10.*0.073/1.,
+#     'Radion650' : 10.*0.073/1.,
+#     'Radion900' : 10.*0.073/1.,
+# }
+# #####################################
+# #####################################
+
 
 ########## Colors ##########
 fillcolors = {
     'TT'    : 8,
     'DY'    : 92,
+    'DY0b'    : 92,
+    'DY1b'    : 94,
+    'DY2b'    : 96,
     'VV'    : ROOT.kRed-7,
     'WJets' : ROOT.kGray,
     'QCD'   : 606,
@@ -184,23 +254,40 @@ fillcolors = {
 linecolors = {
     'TT'    : ROOT.kGreen+3,
     'DY'    : 94,
+    'DY0b'    : 92,
+    'DY1b'    : 94,
+    'DY2b'    : 96,
     'VV'    : ROOT.kRed-6,
     'WJets' : ROOT.kGray,
     'QCD'   : 607,
     'other' : ROOT.kRed-6,
+    'Radion300' : 1,
+    'Radion650' : 634,
+    'Radion900' : 926,
 }
 
 linestyles = {
     'HHSM' : 7,
+    'Radion300' : 1,
+    'Radion650' : 1,
+    'Radion900' : 1,
 }
 
 ######### Things to plot ##################
 # sigList = ["HHSM"]
 bkgToPlot = collections.OrderedDict()
-bkgToPlot['TT' ]   = ['TT']
-bkgToPlot['QCD']   = ['QCD']
-bkgToPlot['DY' ]   = ['DY0b', 'DY1b', 'DY2b']
 bkgToPlot['other'] = ['WJets', 'TWtop', 'TWantitop', 'WWToLNuQQ', 'WZTo1L1Nu2Q', 'WZTo1L3Nu', 'WZTo2L2Q', 'ZZTo2L2Q']
+bkgToPlot['DY' ]   = ['DY0b', 'DY1b', 'DY2b']
+bkgToPlot['QCD']   = ['QCD']
+bkgToPlot['TT' ]   = ['TT']
+
+
+# bkgToPlot['TT' ]   = ['TT']
+# # bkgToPlot['QCD']   = ['QCD']
+# bkgToPlot['DY0b' ]   = ['DY0b']
+# bkgToPlot['DY1b' ]   = ['DY1b']
+# bkgToPlot['DY2b' ]   = ['DY2b']
+# bkgToPlot['other'] = ['WJets', 'TWtop', 'TWantitop', 'WWToLNuQQ', 'WZTo1L1Nu2Q', 'WZTo1L3Nu', 'WZTo2L2Q', 'ZZTo2L2Q']
 
 
 ###########################################
@@ -235,15 +322,23 @@ shc.sigscale   = args.sigscale
 ### decide what to plot
 ## FIXME: could be done from a config? manual edit here!
 
-sigList = ["HHSM"]
+# sigList = ["HHSM", "Radion300", "Radion650", "Radion900"]
+sigList = ["Radion300", "Radion650", "Radion900"]
+# sigList = ["HHSM"]
 
 for sig in sigList:
     if not sig in hSigs:
         print '** Warning: signal' , sig , ' not found in the input, removing from plotting list...'
 sigList[:] = [x for x in sigList if x in hSigs]
 
+# scale to expected sigscale before. NOTE: a second sigscale can be applied in the plotter
 for h in hSigs:
+    match = [key for key in sigscales if fnmatch.fnmatch(h, key)]
+    if len(match) == 1:
+        print " >> info: histo of sample", h, ('scaled by factor %.3g' % sigscales[match[0]])
+        hSigs[h].Scale(sigscales[match[0]])
     shc.addHisto (hSigs[h], h, 'sig', (titles[h] if h in titles else hSigs[h].GetName()))
+
 # for h in hBkgs:
 for hname in bkgToPlot:
     for h in bkgToPlot[hname]:
@@ -254,12 +349,21 @@ for h in hDatas:
 # sigNameList = ["k_{#lambda} = 1 (SM) #times 5000"]
 # sigScale = [5000.*(0.073/1.)*33.45/1000.] # tutto a 1 pb di rpoduzione hh (tolgo il BR in bbtautau)
 shc.setListToPlot(bkgToPlot.keys(), 'bkg')
-shc.setListToPlot(sigList, 'sig')
-shc.setListToPlot(['DsingleMu'], 'data')
+shc.setListToPlot(reversed(sigList), 'sig') # sigs instead are listed from top to bottom of the legend
+shc.setListToPlot(dataList, 'data')
 
 shc.makePlot()
 shc.c1.cd()
 shc.c1.Update()
 
+if args.tab: shc.printTable()
+
 if not args.quit:
     raw_input()
+
+if args.printplot:
+    outname = '_'.join(['plot', args.var, args.sel, args.channel])
+    if args.log: outname += ('_'+'log')
+    outname += '.pdf'
+    # print outname
+    shc.c1.Print(outname, 'pdf')

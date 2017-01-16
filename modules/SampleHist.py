@@ -1,6 +1,8 @@
 # import collections
 import math
 import ROOT
+from prettytable import PrettyTable
+# for the prettytable library: https://pypi.python.org/pypi/PrettyTable#downloads; then run command: sudo python setup.py install 
 
 class SampleHist:
     """ 
@@ -728,7 +730,7 @@ class SampleHistColl:
                 bc = self.ratioErrorHist.GetBinContent(ibin)
                 berr = self.ratioErrorHist.GetBinError(ibin)
                 self.ratioErrorHist.SetBinContent(ibin, 1)
-                self.ratioErrorHist.SetBinError(ibin, berr/bc)
+                self.ratioErrorHist.SetBinError(ibin, berr/bc) if bc > 0 else self.ratioErrorHist.SetBinError(ibin, 0)
 
     def setHistoStyles(self):
         # bkg
@@ -765,45 +767,112 @@ class SampleHistColl:
         else:
             return (decoded[0], decoded[1], decoded[2])
 
-    ### plotter opiton setters -- really needed in python?
-    def setLogY(self, val):
-        self.logy = bool(val)
-
-    def setDivideByBinWidth(self, val):
-        self.divByBW = bool(val)
-
-    def setPlotData(self, val):
-        self.plotData = bool(val)
-
-    def setPlotSignal(self, val):
-        self.plotSig = bool(val)
-
-    def setLineColors(self, dic):
-        self.linecolors = dict(dic)
-
-    def setLineStyles(self, dic):
-        self.linestyles = dict(dic)
-
-    def setFillColors(self, dic):
-        self.fillcolors = dict(dic)
+    def printTable(self, uoflow=False, printMCstat=False):
+        """ print a table containing the event and yields """
         
-    def addLineColor(self, name, val):
-        self.linecolors[name] = val
+        ############# BKGS
+        tab = PrettyTable (['process', 'num evts'])
+        if printMCstat: tab.add_column('MC stat', [])
+        
+        totyield = 0
+        for name in self.bkgsToPlot:
+            evtyield = self.bkgs[name].getHisto().Integral(-1, -1) if uoflow else self.bkgs[name].getHisto().Integral()
+            totyield += evtyield
+            MCstat   = self.bkgs[name].getHisto().GetEntries()
+            row = [name, evtyield]
+            if printMCstat: row.append(MCstat)
+            tab.add_row(row)
+        row = ['*TOTAL*', totyield]
+        if printMCstat: row.append('-')
+        tab.add_row(row)
+        tab.float_format = '.2' ## means print line %.<float_format>f
 
-    def addLineStyle(self, name, val):
-        self.linestyles[name] = val
+        print "\n--- table : BACKGROUNDS"
+        print tab
+        print ''
+        
+        ############# SIGS
+        tab = PrettyTable (['process', 'num evts'])
+        if printMCstat: tab.add_column('MC stat', [])
+        
+        totyield = 0
+        for name in self.sigsToPlot:
+            evtyield = self.sigs[name].getHisto().Integral(-1, -1) if uoflow else self.sigs[name].getHisto().Integral()
+            totyield += evtyield
+            MCstat   = self.sigs[name].getHisto().GetEntries()
+            row = [name, evtyield]
+            if printMCstat: row.append(MCstat)
+            tab.add_row(row)
+        # row = ['TOTAL', totyield]
+        # if printMCstat: row.append('-')
+        # tab.add_row(row)
+        tab.float_format = '.2' ## means print line %.<float_format>f
 
-    def addFillColor(self, name, val):
-        self.fillcolors[name] = val
+        print "--- table : SIGNALS"
+        print tab
+        print ''
 
-    def setSitLegExtraText(self, text):
-        self.siglegextratext = text
+        ############# DATA
+        tab = PrettyTable (['process', 'num evts'])
+        if printMCstat: tab.add_column('MC stat', [])
+        
+        totyield = 0
+        for name in self.dataToPlot:
+            evtyield = self.data[name].getHisto().Integral(-1, -1) if uoflow else self.data[name].getHisto().Integral()
+            totyield += evtyield
+            MCstat   = self.data[name].getHisto().GetEntries()
+            row = [name, evtyield]
+            if printMCstat: row.append(MCstat)
+            tab.add_row(row)
+        # row = ['TOTAL', totyield]
+        # if printMCstat: row.append('-')
+        # tab.add_row(row)
+        tab.float_format = '.2' ## means print line %.<float_format>f
 
-    def setXtitle(self, title):
-        self.xtitle = title
+        print "--- table : DATA"
+        print tab
+        print ''
 
-    def setYtitle(self, title):
-        self.ytitle = title
+
+    ### plotter opiton setters -- really needed in python?
+    # def setLogY(self, val):
+    #     self.logy = bool(val)
+
+    # def setDivideByBinWidth(self, val):
+    #     self.divByBW = bool(val)
+
+    # def setPlotData(self, val):
+    #     self.plotData = bool(val)
+
+    # def setPlotSignal(self, val):
+    #     self.plotSig = bool(val)
+
+    # def setLineColors(self, dic):
+    #     self.linecolors = dict(dic)
+
+    # def setLineStyles(self, dic):
+    #     self.linestyles = dict(dic)
+
+    # def setFillColors(self, dic):
+    #     self.fillcolors = dict(dic)
+        
+    # def addLineColor(self, name, val):
+    #     self.linecolors[name] = val
+
+    # def addLineStyle(self, name, val):
+    #     self.linestyles[name] = val
+
+    # def addFillColor(self, name, val):
+    #     self.fillcolors[name] = val
+
+    # def setSitLegExtraText(self, text):
+    #     self.siglegextratext = text
+
+    # def setXtitle(self, title):
+    #     self.xtitle = title
+
+    # def setYtitle(self, title):
+    #     self.ytitle = title
 
 
 
