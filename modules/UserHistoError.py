@@ -15,6 +15,7 @@ class UserHistoError:
         self.cfgSystRdr = cfgr.ConfigReader(cfgSyst)
         self.histos = None
         self.doMCStatErr = True
+        self.externalDict = None # if set, overrides the list read from the cfg
 
     def matchesAny(self, name, matchList):
         match = False
@@ -64,26 +65,63 @@ class UserHistoError:
             raise ValueError
         
         # print self.cfgSystRdr.config['list']
-        systList = self.cfgSystRdr.config['list'].keys()
-        # print systList
+    
+        ## do errors from the cfg    
+        if not self.externalDict:
+            systList = self.cfgSystRdr.config['list'].keys()
+            # print systList
 
-        for ibin in range(1, self.herror.GetNbinsX()+1):
-            for syst in systList:
-                err = 0
-                descr = self.cfgSystRdr.readListOption('list::'+syst)
-                systMag = float(descr[0])
-                for bkg in self.histos:
-                    if self.matchesAny(bkg, descr[1:]): ## i.e., if the current syst affects bkg
-                        err += (systMag*self.histos[bkg].GetBinContent(ibin))
-                        # if ibin == 1: print "bkg : " , bkg , "is affected by syst: " , syst
-                cerr = self.herror.GetBinError(ibin)
-                self.herror.SetBinError(ibin, math.sqrt(cerr*cerr + err*err))
-
-        # now MC stat error using GetBinError
-        if self.doMCStatErr:
             for ibin in range(1, self.herror.GetNbinsX()+1):
-                for bkg in self.histos:
-                   cerr = self.herror.GetBinError(ibin)
-                   err  = self.histos[bkg].GetBinError(ibin)
-                   self.herror.SetBinError(ibin, math.sqrt(cerr*cerr + err*err)) ## FIXME: should I put the 5% thr. error as done in the cards?
+                for syst in systList:
+                    err = 0
+                    descr = self.cfgSystRdr.readListOption('list::'+syst)
+                    systMag = float(descr[0])
+                    for bkg in self.histos:
+                        if self.matchesAny(bkg, descr[1:]): ## i.e., if the current syst affects bkg
+                            err += (systMag*self.histos[bkg].GetBinContent(ibin))
+                            # if ibin == 1: print "bkg : " , bkg , "is affected by syst: " , syst
+                    cerr = self.herror.GetBinError(ibin)
+                    self.herror.SetBinError(ibin, math.sqrt(cerr*cerr + err*err))
 
+            # now MC stat error using GetBinError
+            if self.doMCStatErr:
+                for ibin in range(1, self.herror.GetNbinsX()+1):
+                    for bkg in self.histos:
+                        cerr = self.herror.GetBinError(ibin)
+                        err  = self.histos[bkg].GetBinError(ibin)
+                        self.herror.SetBinError(ibin, math.sqrt(cerr*cerr + err*err)) ## FIXME: should I put the 5% thr. error as done in the cards?
+        
+        ## use the external dictionary as input
+        ## the dict is formatted as dict[bkgname] = relativeerror
+        else:
+            print " >> info: computing errors using an external dictionary"
+            bkgList = self.externalDict.keys()
+            # print systList
+
+            for ibin in range(1, self.herror.GetNbinsX()+1):
+                err2 = 0
+                for bkg in bkgList:
+                    if not bkg in self.histos:
+                        continue
+                    systMag = self.externalDict[bkg]
+                    err = (systMag*self.histos[bkg].GetBinContent(ibin))
+                    err2 += err*err # sum in quadrature all the errors
+                self.herror.SetBinError(ibin, math.sqrt(err2))
+
+            # now MC stat error using GetBinError
+            if self.doMCStatErr:
+                for ibin in range(1, self.herror.GetNbinsX()+1):
+                    for bkg in self.histos:
+                        cerr = self.herror.GetBinError(ibin)
+                        err  = self.histos[bkg].GetBinError(ibin)
+                        # print " ... making MC stat error: " , bkg, err, self.histos[bkg].Integral()
+                        if bkg == 'QCD': ## this is a patch, because QCD does not have the proper error
+
+                            theyield = self.histos[bkg]
+                            if theyield <= 0:
+                              err = 0
+                            else: 
+                                if err/theyield > 1.0:  # ## max err is 100%?
+                                    err = 1.0
+                       
+                        self.herror.SetBinError(ibin, math.sqrt(cerr*cerr + err*err)) ## FIXME: should I put the 5% thr. error as done in the cards?

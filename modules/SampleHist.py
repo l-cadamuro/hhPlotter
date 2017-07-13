@@ -244,6 +244,7 @@ class SampleHistColl:
         self.plotSig    = True
         self.dataGrass  = True
         self.ratio      = False
+        self.sbplot     = False
         self.ratioherrs = False
         self.plotLegend = True
 
@@ -260,7 +261,8 @@ class SampleHistColl:
 
         ## fonts and sizes
         self.textfont      = 43
-        self.legtextsize   = 20
+        self.lumitextfont  = 42
+        self.legtextsize   = 18
         self.axistextsize  = 30
         self.axislabelsize = 22
         self.ndivisions    = 505
@@ -270,12 +272,15 @@ class SampleHistColl:
 
         self.cmstextfont   = 61  # font of the "CMS" label
         self.cmstextsize   = 0.05  # font size of the "CMS" label
+        self.chantextsize = 18
         self.extratextfont = 52     # for the "preliminary"
         self.extratextsize = 0.76 * self.cmstextsize # for the "preliminary"
+        self.cmstextinframe = True
 
         ## other info on the plot
         self.lumi = -999.99 ## in fb^-1
         self.chan = None    ## e.g. 'bb XX'
+        self.ispreliminary = False
 
         ## titles and plot properties
         # self.xtitle = 'xtitle'
@@ -325,14 +330,20 @@ class SampleHistColl:
             self.bwbkgstack.Add(self.bkgs[bkgname].bwHist)
 
     def makeLegend (self):
-        legxmin = 0.50
+        legxmin = 0.55
         legymin = 0.45
+        if not self.ispreliminary: #shif down and left for more space
+            legxmin = 0.475
+            legymin = 0.40
         if self.legxmin:
             legxmin = self.legxmin
         if self.legymin:
             legymin = self.legymin
         legxmax = 0.37+legxmin
         legymax = 0.93
+        if not self.ispreliminary: #shif down and left for more space
+            legxmax = 0.50+legxmin
+            legymax = 0.93
         if self.legcoords:
             legxmin = self.legcoords[0]
             legymin = self.legcoords[1]
@@ -358,7 +369,7 @@ class SampleHistColl:
             self.legend.AddEntry(his, self.bkgs[sh].getTitle(), "f")
 
         if hasattr(self, 'stackErrorHist'):
-            self.legend.AddEntry (self.stackErrorHist, "bkg. uncertainty", "f")
+            self.legend.AddEntry (self.stackErrorHist, "Bkg. uncertainty", "f")
 
         if self.plotSig:
             for name in reversed(self.sigsToPlot):
@@ -372,7 +383,7 @@ class SampleHistColl:
         self.c1 = ROOT.TCanvas("c1", "c1", 600, 600)
     
         ## case with 2 pads drawn
-        if self.ratio:
+        if self.ratio or self.sbplot:
             self.c1.cd()
             self.pad1 = ROOT.TPad ("pad1", "pad1", 0, 0.25, 1, 1.0)
             self.pad1.SetFrameLineWidth(3)
@@ -544,11 +555,12 @@ class SampleHistColl:
             self.extratexts[tx].Draw()
 
         ### if a second pad is needed
-        if self.ratio:
+        if self.ratio or self.sbplot:
             self.c1.cd()
             self.pad2.Draw()
             self.pad2.cd()
-            self.makeDataToMCRatios()
+            if self.ratio: self.makeDataToMCRatios()
+            elif self.sbplot: self.makeSBPlots()
             
             ## a frame to do the plots
             try:
@@ -564,7 +576,8 @@ class SampleHistColl:
 
             #self.hratioframe.GetXaxis().SetTitle(bkgStack.GetXaxis().GetName())
             if self.title: self.hratioframe.SetTitle(self.title)
-            self.hratioframe.GetYaxis().SetTitle ("Data/MC")
+            if self.ratio: self.hratioframe.GetYaxis().SetTitle ("Data/MC")
+            elif self.sbplot: self.hratioframe.GetYaxis().SetTitle ("S/B")
             self.hratioframe.GetXaxis().SetTitleOffset(self.ratioxtitleoffset)
             self.hratioframe.GetYaxis().SetTitleOffset(self.ytitleoffset)
 
@@ -580,15 +593,25 @@ class SampleHistColl:
                 self.hratioframe.GetXaxis().SetRangeUser(usrxmin, usrxmax)
 
             self.hratioframe.SetStats(0)
-            self.hratioframe.SetMinimum(0.6)
-            self.hratioframe.SetMaximum(1.4)
+            
+            if self.ratio:
+                self.hratioframe.SetMinimum(0.6)
+                self.hratioframe.SetMaximum(1.4)
+
+            elif self.sbplot:
+                self.hratioframe.SetMinimum(0.0)
+                self.hratioframe.SetMaximum(5.0)
 
             self.hratioframe.Draw('axis')
             if hasattr(self, 'ratioErrorHist'):
                 self.ratioErrorHist.Draw("E2 same")
 
-            for dh in self.dataToPlot:
-                self.dataToMCRatios[dh].Draw('p z same') ## z: no small lines at the end of the points
+            if self.ratio:
+                for dh in self.dataToPlot:
+                    self.dataToMCRatios[dh].Draw('p z 0 same') ## z: no small lines at the end of the points, 0: lines outside the range
+            elif self.sbplot:
+                for sh in self.sbRatioPlots:
+                    self.sbRatioPlots[sh].Draw('p l same')
 
             self.pad2.RedrawAxis();
             self.pad2.RedrawAxis("g"); #otherwise no grid..
@@ -642,6 +665,47 @@ class SampleHistColl:
                         if xpt > xmin and xpt < xmax:
                             self.dataToMCRatios[dh].RemovePoint(ipt)
 
+
+    def makeSBPlots(self):
+
+        try:
+            self.bkgstack
+        except AttributeError:
+            self.makeStacks()
+
+        try:
+            self.sbRatioPlots
+        except AttributeError:
+            self.sbRatioPlots = {}
+
+        for sh in self.sigsToPlot:
+            print '.. doing S/B ratio for: ' , sh
+            self.sbRatioPlots[sh] = ROOT.TGraph()
+            hsig = self.sigs[sh].getHisto(False)
+            hMC  = self.bkgstack.GetStack().Last()
+            self.sbRatioPlots[sh].SetName('grSBplot_'+hsig.GetName())
+            for ibin in range (1, hsig.GetNbinsX()+1):
+                num = hsig.GetBinContent(ibin)
+                den = hMC.GetBinContent(ibin)
+                if den > 0:
+                    # Y
+                    x = hsig.GetBinCenter(ibin)
+                    y = num/den
+                    # exlow  = hsig.GetBinCenter(ibin) - hsig.GetBinLowEdge(ibin) if self.ratioherrs else 0.
+                    # exhigh = hsig.GetBinLowEdge(ibin+1) - hsig.GetBinCenter(ibin) if self.ratioherrs else 0.
+                    # eyhigh = hsig.GetBinErrorUp(ibin) / den
+                    # eylow  = hsig.GetBinErrorLow(ibin) / den
+                    self.sbRatioPlots[sh].SetPoint(self.sbRatioPlots[sh].GetN(), x, y)
+                    # self.sbRatioPlots[sh].SetPointError(self.sbRatioPlots[sh].GetN()-1, exlow, exhigh, eylow, eyhigh)
+
+                ## styles
+                self.sbRatioPlots[sh].SetMarkerStyle(8)
+                self.sbRatioPlots[sh].SetMarkerSize(0.8)
+                self.sbRatioPlots[sh].SetMarkerColor(self.linecolors[sh])
+                self.sbRatioPlots[sh].SetLineColor(self.linecolors[sh])
+                self.sbRatioPlots[sh].SetLineStyle(self.linestyles[sh])
+
+
     def makeExtraTexts (self):
         try: self.extratexts
         except AttributeError: self.extratexts = {}
@@ -651,19 +715,22 @@ class SampleHistColl:
         lumibox.SetNDC()
         lumibox.SetTextAlign(31)
         lumibox.SetTextSize(self.extratextsize)
-        lumibox.SetTextFont(self.textfont)
+        lumibox.SetTextFont(self.lumitextfont)
         lumibox.SetTextColor(ROOT.kBlack)
         self.extratexts['lumi'] = lumibox
 
         ## CMS
         xpos  = 0.177
-        ypos  = 0.94
+        if self.cmstextinframe:
+            ypos  = 0.94 ## inside the frame
+        else:
+            ypos  = 0.995  ## ouside the frame
         CMSbox = ROOT.TLatex  (xpos, ypos , "CMS")       
         CMSbox.SetNDC()
         CMSbox.SetTextSize(self.cmstextsize)
         CMSbox.SetTextFont(self.cmstextfont)
         CMSbox.SetTextColor(ROOT.kBlack)
-        CMSbox.SetTextAlign(13)
+        CMSbox.SetTextAlign(13) ## inside the frame
         self.extratexts['cms'] = CMSbox
         
         ## preliminary
@@ -673,21 +740,26 @@ class SampleHistColl:
         prelimBox.SetTextFont(self.extratextfont)
         prelimBox.SetTextColor(ROOT.kBlack)
         prelimBox.SetTextAlign(13)
-        self.extratexts['preliminary'] = prelimBox
+        if self.ispreliminary: self.extratexts['preliminary'] = prelimBox
         
         ## channel
         if self.chan:
-            chBox = ROOT.TLatex  (xpos + 0.19, ypos - 0.007, self.chan)
+            xposch = xpos + 0.19 if self.ispreliminary else xpos + 0.11 ## shift left for more space if not preliminary
+            if not self.cmstextinframe:
+                xposch = xpos
+            yposch = ypos if self.cmstextinframe else 0.94
+            chBox = ROOT.TLatex  (xposch, yposch - 0.007, self.chan)
             chBox.SetNDC()
-            chBox.SetTextSize(self.cmstextsize+18)
+            # chBox.SetTextSize(self.cmstextsize+18)
+            chBox.SetTextSize(self.chantextsize)
             chBox.SetTextFont(self.textfont)
             chBox.SetTextColor(ROOT.kBlack)
             chBox.SetTextAlign(13)
             self.extratexts['chan'] = chBox
-
-            chBox2 = ROOT.TLatex  (xpos + 0.19, ypos - 0.069+ 0.025 - 0.007, "channel")
+            chBox2 = ROOT.TLatex  (xposch, yposch - 0.069+ 0.025 - 0.007, "channel")
             chBox2.SetNDC()
-            chBox2.SetTextSize(self.cmstextsize+18)
+            # chBox2.SetTextSize(self.cmstextsize+18)
+            chBox2.SetTextSize(self.chantextsize)
             chBox2.SetTextFont(self.textfont)
             chBox2.SetTextColor(ROOT.kBlack)
             chBox2.SetTextAlign(13)
@@ -767,7 +839,7 @@ class SampleHistColl:
         else:
             return (decoded[0], decoded[1], decoded[2])
 
-    def printTable(self, uoflow=False, printMCstat=False):
+    def printTable(self, uoflow=False, printMCstat=False, floatFormat='.2'):
         """ print a table containing the event and yields """
         
         ############# BKGS
@@ -785,7 +857,7 @@ class SampleHistColl:
         row = ['*TOTAL*', totyield]
         if printMCstat: row.append('-')
         tab.add_row(row)
-        tab.float_format = '.2' ## means print line %.<float_format>f
+        tab.float_format = floatFormat ## means print line %.<float_format>f
 
         print "\n--- table : BACKGROUNDS"
         print tab
@@ -806,7 +878,7 @@ class SampleHistColl:
         # row = ['TOTAL', totyield]
         # if printMCstat: row.append('-')
         # tab.add_row(row)
-        tab.float_format = '.2' ## means print line %.<float_format>f
+        tab.float_format = floatFormat ## means print line %.<float_format>f
 
         print "--- table : SIGNALS"
         print tab
@@ -827,52 +899,52 @@ class SampleHistColl:
         # row = ['TOTAL', totyield]
         # if printMCstat: row.append('-')
         # tab.add_row(row)
-        tab.float_format = '.2' ## means print line %.<float_format>f
+        tab.float_format = floatFormat ## means print line %.<float_format>f
 
         print "--- table : DATA"
         print tab
         print ''
 
 
-    ### plotter opiton setters -- really needed in python?
-    # def setLogY(self, val):
-    #     self.logy = bool(val)
+    ## plotter opiton setters -- really needed in python?
+    def setLogY(self, val):
+        self.logy = bool(val)
 
-    # def setDivideByBinWidth(self, val):
-    #     self.divByBW = bool(val)
+    def setDivideByBinWidth(self, val):
+        self.divByBW = bool(val)
 
-    # def setPlotData(self, val):
-    #     self.plotData = bool(val)
+    def setPlotData(self, val):
+        self.plotData = bool(val)
 
-    # def setPlotSignal(self, val):
-    #     self.plotSig = bool(val)
+    def setPlotSignal(self, val):
+        self.plotSig = bool(val)
 
-    # def setLineColors(self, dic):
-    #     self.linecolors = dict(dic)
+    def setLineColors(self, dic):
+        self.linecolors = dict(dic)
 
-    # def setLineStyles(self, dic):
-    #     self.linestyles = dict(dic)
+    def setLineStyles(self, dic):
+        self.linestyles = dict(dic)
 
-    # def setFillColors(self, dic):
-    #     self.fillcolors = dict(dic)
+    def setFillColors(self, dic):
+        self.fillcolors = dict(dic)
         
-    # def addLineColor(self, name, val):
-    #     self.linecolors[name] = val
+    def addLineColor(self, name, val):
+        self.linecolors[name] = val
 
-    # def addLineStyle(self, name, val):
-    #     self.linestyles[name] = val
+    def addLineStyle(self, name, val):
+        self.linestyles[name] = val
 
-    # def addFillColor(self, name, val):
-    #     self.fillcolors[name] = val
+    def addFillColor(self, name, val):
+        self.fillcolors[name] = val
 
-    # def setSitLegExtraText(self, text):
-    #     self.siglegextratext = text
+    def setSitLegExtraText(self, text):
+        self.siglegextratext = text
 
-    # def setXtitle(self, title):
-    #     self.xtitle = title
+    def setXtitle(self, title):
+        self.xtitle = title
 
-    # def setYtitle(self, title):
-    #     self.ytitle = title
+    def setYtitle(self, title):
+        self.ytitle = title
 
 
 
